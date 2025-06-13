@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Upload File ke GitHub</title>
+</head>
+<body>
+  <h1>Upload File ke GitHub</h1>
+  <input type="file" id="fileInput" />
+  <button onclick="uploadToGitHub()">Upload</button>
+
+  <script>
+    const token = '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'; // Ganti dengan GitHub PAT
+    const username = 'sismadi';
+    const repo = 'lab-sismadi-upload';
+    const branch = 'main';
+
+    async function uploadToGitHub() {
+      const fileInput = document.getElementById('fileInput');
+      if (!fileInput.files.length) {
+        alert('Pilih file terlebih dahulu');
+        return;
+      }
+
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+
+      reader.onload = async function() {
+        const content = reader.result.split(',')[1]; // base64 string
+        const path = file.name; // nama file di repo
+
+        // Cek apakah file sudah ada
+        const checkUrl = `https://api.github.com/repos/${username}/${repo}/contents/${path}`;
+        let sha = null;
+
+        try {
+          const res = await fetch(checkUrl, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: 'application/vnd.github.v3+json'
+            }
+          });
+
+          if (res.ok) {
+            const json = await res.json();
+            sha = json.sha; // perlu sha jika ingin replace file
+          }
+        } catch (err) {
+          console.error('Cek file gagal:', err);
+        }
+
+        const url = `https://api.github.com/repos/${username}/${repo}/contents/${path}`;
+
+        const data = {
+          message: `Upload file ${file.name}`,
+          content: content,
+          branch: branch
+        };
+
+        if (sha) {
+          data.sha = sha; // jika file sudah ada, perlu sha untuk update
+        }
+
+        const response = await fetch(url, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/vnd.github.v3+json'
+          },
+          body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+          alert('Upload berhasil!\n' + result.content.path);
+        } else {
+          alert('Gagal upload: ' + (result.message || 'Unknown error'));
+          console.error(result);
+        }
+      };
+
+      reader.readAsDataURL(file);
+    }
+  </script>
+</body>
+</html>
